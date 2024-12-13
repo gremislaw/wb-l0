@@ -1,19 +1,15 @@
 package rest
 
 import (
-	"database/sql"
-	"order_service/internal/models"
+	"context"
 	"order_service/internal/repository"
 )
 
 type OrderService struct {
-	DB *sql.DB
+	Queries *repository.Queries
+	Ctx context.Context
 }
 
-func NewOrderService(db *sql.DB) repository.OrderRepository {
-	return &OrderService{DB: db}
-}
-
-func (s *OrderService) Get(id int) (*models.Order, error) {
-	return nil, nil
+func NewOrderService(queries *repository.Queries, ctx context.Context) *OrderService {
+	return &OrderService{Queries: queries, Ctx: ctx}
 }

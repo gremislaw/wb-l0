@@ -1,38 +1,39 @@
 package main
 
 import (
-	"order_service/internal/db"
-	"order_service/internal/config"
-	"order_service/internal/logger"
-	"order_service/internal/rest"
-	"go.uber.org/zap"
-	"syscall"
-	"os/signal"
-	"os"
 	"context"
-	"time"
-	"net/http"
 	"fmt"
+	"go.uber.org/zap"
+	"net/http"
+	"order_service/internal/config"
+	"order_service/internal/db"
+	. "order_service/internal/logger"
+	"order_service/internal/rest"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 )
 
 func main() {
 	// Загружаем логгер
-	logger := logger.LoadLogger()
+	LoadLogger()
 
 	// Загружаем БД
-	db, err := db.Load()
+	retries := 5
+	db, err := db.Load(retries)
 	if err != nil {
-		logger.Fatal(err.Error())
+		Logger.Fatal(err.Error())
 	}
 	defer db.Close()
-	
+
 	// Создаем REST сервис
 	rest.CreateRestService(db)
 
 	// Запуск сервера
 	cfg, err := config.Load()
 	if err != nil {
-		logger.Fatal(err.Error())
+		Logger.Fatal(err.Error())
 	}
 	srvAddr := fmt.Sprintf("%v:%v", cfg.APP_IP, cfg.APP_PORT)
 	srv := &http.Server{
@@ -40,9 +41,9 @@ func main() {
 	}
 
 	go func() {
-		logger.Info("Server is running", zap.String("address", srvAddr))
+		Logger.Info("Server is running", zap.String("address", srvAddr))
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Fatal("Listen error", zap.Error(err))
+			Logger.Fatal("Listen error", zap.Error(err))
 		}
 	}()
 
@@ -51,13 +52,13 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
 	<-quit
-	logger.Info("Server shutdown...")
+	Logger.Info("Server shutdown...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
-		logger.Fatal("Server is forced to shut down", zap.Error(err))
+		Logger.Fatal("Server is forced to shut down", zap.Error(err))
 	}
-	logger.Info("Server closed")
+	Logger.Info("Server closed")
 }

@@ -1,14 +1,12 @@
 package config
 
 import (
+	"errors"
+	. "order_service/internal/logger"
+
 	"github.com/caarlos0/env"
 	"github.com/joho/godotenv"
 	"go.uber.org/zap"
-	"errors"
-)
-
-var (
-	logger *zap.Logger
 )
 
 type config struct {
@@ -26,20 +24,33 @@ func Load() (*config, error) {
 
 	// Загрузка переменных среды
 	if err := godotenv.Load(); err != nil {
-		logger.Warn("No .env file found")
+		Logger.Warn("No .env file found")
 	}
 
 	// Парсинг конфигурации
 	if err := env.Parse(&cfg); err != nil {
 		errMsg := "Failed to parse config =>" + err.Error()
-		logger.Warn(errMsg)
+		Logger.Warn(errMsg)
 		return nil, errors.New(errMsg)
 	}
-	
-	logger.Info("Config successfully loaded", zap.String("database", cfg.POSTGRES_DB), zap.String("app_port", cfg.APP_PORT))
+
+	if !cfg.IsValid() {
+		errMsg := "bad configuration data"
+		Logger.Warn(errMsg, zap.Any("configData", cfg))
+		return nil, errors.New(errMsg)
+	}
+
+	Logger.Info("Config successfully loaded", zap.Any("configuration", cfg))
 	return &cfg, nil
 }
 
-func InitLogger(l *zap.Logger) {
-	logger = l
+func (cfg config) IsValid() bool {
+	var res bool = true
+	if cfg.POSTGRES_USER == "" || cfg.POSTGRES_PASSWORD == "" ||
+		cfg.POSTGRES_DB == "" || cfg.POSTGRES_HOST == "" ||
+		cfg.POSTGRES_PORT == "" || cfg.APP_IP == "" ||
+		cfg.APP_PORT == "" {
+		res = false
+	}
+	return res
 }

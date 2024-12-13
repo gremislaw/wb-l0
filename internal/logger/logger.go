@@ -2,20 +2,23 @@ package logger
 
 import (
 	"go.uber.org/zap"
-	"order_service/internal/db"
-	"order_service/internal/config"
 )
 
-func LoadLogger() *zap.Logger {
+var (
+	Logger *zap.Logger
+)
+
+func LoadLogger() {
 	// Создание логгера
-	logger, err := zap.NewProduction()
+	l, err := zap.NewProduction()
 	if err != nil {
 		zap.Error(err)
 	}
 
 	// Инициализация логгера
-	db.InitLogger(logger)
-	config.InitLogger(logger)
+	initLogger(l)
+}
 
-	return logger
+func initLogger(l *zap.Logger) {
+	Logger = l
 }
