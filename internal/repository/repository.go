@@ -1,3 +1,5 @@
+// Репозиторий для работы с БД
+
 package repository
 
 import (

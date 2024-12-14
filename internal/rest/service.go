@@ -7,7 +7,7 @@ import (
 
 type OrderService struct {
 	Queries *repository.Queries
-	Ctx context.Context
+	Ctx     context.Context
 }
 
 func NewOrderService(queries *repository.Queries, ctx context.Context) *OrderService {

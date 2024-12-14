@@ -9,11 +9,14 @@ import (
 	"go.uber.org/zap"
 )
 
+// endpoint для получения order по id
 func (s *OrderService) GetOrder(w http.ResponseWriter, r *http.Request) {
 	Logger.Info("got request: GetRelease")
+	// получение id
 	idStr := r.URL.Path[len("/order/"):]
 	Logger.Info("got id", zap.String("id", idStr))
 
+	// преобразование полученного id в int, т.к. id в формате string, проверка валидности
 	id, err := strconv.Atoi(idStr)
 	if err != nil || id < 1 {
 		Logger.Warn("Invalid ID", zap.Int("id", id))
@@ -21,6 +24,7 @@ func (s *OrderService) GetOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// запрос к бд для получения order
 	order, err := s.Queries.GetOrder(s.Ctx, id)
 
 	if err != nil {

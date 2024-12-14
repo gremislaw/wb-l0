@@ -3,6 +3,7 @@ package models
 import "time"
 
 type Payment struct {
+	OrderUID     int       `json:"order_uid"`
 	Transaction  string    `json:"payment_transaction"`
 	RequestID    string    `json:"payment_request_id"`
 	Currency     string    `json:"payment_currency"`

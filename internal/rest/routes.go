@@ -12,9 +12,11 @@ func handleRoutes(orderSvc *OrderService) {
 	http.HandleFunc("/order/", orderSvc.GetOrder)
 }
 
-func CreateRestService(db *sql.DB) {
+func CreateRestService(db *sql.DB) *OrderService {
+	// создание REST сервиса
 	ctx := context.Background()
 	queries := repository.New(db)
 	orderSvc := NewOrderService(queries, ctx)
 	handleRoutes(orderSvc)
+	return orderSvc
 }

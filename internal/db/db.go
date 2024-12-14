@@ -14,6 +14,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// Загрузка БД
 func Load(retries int) (*sql.DB, error) {
 	// Загрузка конфигурации
 	cfg, err := config.Load()
@@ -42,15 +43,17 @@ func Load(retries int) (*sql.DB, error) {
 	return db, nil
 }
 
-
+// Подключение к БД
 func Connect(dsn string, retries int) (*sql.DB, error) {
-	// Подключение к БД
-	db, err := sql.Open("postgres", dsn)
+	var db *sql.DB
+	var err error
 	for i := 1; i <= retries; i++ {
-		if err != nil {
-			errMsg := "DB connection error"
-			Logger.Warn(errMsg, zap.String("DSN", dsn))
+		db, err = sql.Open("postgres", dsn)
+		if err == nil {
+			break
 		}
+		errMsg := "DB connection error"
+		Logger.Warn(errMsg, zap.String("DSN", dsn))
 		Logger.Info("retrying to load DB...", zap.Int("retry", i))
 		time.Sleep(3 * time.Second)
 	}
@@ -62,10 +65,10 @@ func Connect(dsn string, retries int) (*sql.DB, error) {
 	return db, nil
 }
 
-
 //go:embed migrations/*.sql
 var embedMigrations embed.FS
 
+// Миграция БД
 func Migrate(DB *sql.DB) error {
 	goose.SetBaseFS(embedMigrations)
 	if err := goose.SetDialect("postgres"); err != nil {
