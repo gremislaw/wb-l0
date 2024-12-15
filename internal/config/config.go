@@ -17,6 +17,7 @@ type config struct {
 	POSTGRES_PASSWORD string `env:"POSTGRES_PASSWORD"`
 	APP_IP            string `env:"APP_IP"`
 	APP_PORT          string `env:"APP_PORT"`
+	KafkaUrl          string `env:"KAFKA_URL"`
 }
 
 func Load() (*config, error) {

@@ -3,7 +3,72 @@ package repository
 import (
 	"context"
 	"order_service/internal/models"
+	"strconv"
 )
+
+// шаблон запроса получения orders по id
+const getOrders = `-- name: GetOrder :many
+SELECT id, track_number, entry, locale, internal_signature, customer_id, delivery_service, shardkey, sm_id, date_created, oof_shard
+FROM orders
+`
+
+func (q *Queries) GetOrders(ctx context.Context) ([]models.Order, error) {
+	rows, err := q.db.QueryContext(ctx, getOrders)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var orders []models.Order
+	for rows.Next() {
+		var i models.Order
+		if err := rows.Scan(
+			&i.OrderUID,
+			&i.TrackNumber,
+			&i.Entry,
+			&i.Locale,
+			&i.InternalSignature,
+			&i.CustomerID,
+			&i.DeliveryService,
+			&i.ShardKey,
+			&i.SMID,
+			&i.DateCreated,
+			&i.OofShard,
+		); err != nil {
+			return nil, err
+		}
+
+		id, err := strconv.Atoi(i.OrderUID)
+		if err != nil {
+			return nil, err
+		}
+
+		delivery, err := q.GetDelivery(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		i.Delivery = delivery
+
+		payment, err := q.GetPayment(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		i.Payment = payment
+
+		items, err := q.GetItems(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		i.Items = items
+		orders = append(orders, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return orders, nil
+}
 
 // шаблон запроса получения order по id
 const getOrder = `-- name: GetOrder :one
@@ -116,7 +181,7 @@ func (q *Queries) GetItems(ctx context.Context, id int) ([]models.Item, error) {
 	defer rows.Close()
 	var items []models.Item
 	for rows.Next() {
-		var i  models.Item
+		var i models.Item
 		if err := rows.Scan(
 			&i.ChrtID,
 			&i.TrackNumber,
@@ -142,7 +207,6 @@ func (q *Queries) GetItems(ctx context.Context, id int) ([]models.Item, error) {
 	}
 	return items, nil
 }
-
 
 // шаблон запроса на создание order
 const createOrder = `-- name: GetOrder :one
@@ -182,7 +246,6 @@ func (q *Queries) CreateOrder(ctx context.Context, order models.Order) error {
 	return err
 }
 
-
 // шаблон запроса на создание delivery
 const createDelivery = `-- name: GetDelivery :one
 INSERT INTO deliveries (order_uid, name, phone, zip, city, address, region, email)
@@ -202,7 +265,6 @@ func (q *Queries) CreateDelivery(ctx context.Context, delivery models.Delivery) 
 	)
 	return err
 }
-
 
 // шаблон запроса на создание payment
 const createPayment = `-- name: GetPayment :one
@@ -226,7 +288,6 @@ func (q *Queries) CreatePayment(ctx context.Context, payment models.Payment) err
 	)
 	return err
 }
-
 
 // шаблон запроса на создание items
 const createItems = `-- name: GetItem :many

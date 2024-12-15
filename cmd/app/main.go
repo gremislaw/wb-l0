@@ -3,23 +3,26 @@ package main
 import (
 	"context"
 	"fmt"
-	"go.uber.org/zap"
 	"net/http"
+	"order_service/internal/cache"
 	"order_service/internal/config"
 	"order_service/internal/db"
+	"order_service/internal/kafka"
 	. "order_service/internal/logger"
 	"order_service/internal/rest"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 func main() {
-	// Загружаем логгер
+	// Загрузка логгер
 	LoadLogger()
 
-	// Загружаем БД
+	// Загрузка БД
 	retries := 5
 	db, err := db.Load(retries)
 	if err != nil {
@@ -27,14 +30,19 @@ func main() {
 	}
 	defer db.Close()
 
-	// Создаем REST сервис
+	// Создание кэша
+	cache := cache.CreateCache(db)
+
+	// Создание REST сервиса
 	rest.CreateRestService(db)
 
-	// Запуск сервера
+	// Загрузка конфига
 	cfg, err := config.Load()
 	if err != nil {
 		Logger.Fatal(err.Error())
 	}
+
+	// Запуск сервера
 	srvAddr := fmt.Sprintf("%v:%v", cfg.APP_IP, cfg.APP_PORT)
 	srv := &http.Server{
 		Addr: srvAddr,
@@ -46,6 +54,11 @@ func main() {
 			Logger.Fatal("Listen error", zap.Error(err))
 		}
 	}()
+
+	// Запуск consumer
+	kafkaConsumer := kafka.CreateConsumerWrapper(db, []string{cfg.KafkaUrl}, cache)
+
+	go kafkaConsumer.ConsumeMessages()
 
 	// Выключение сервера
 	quit := make(chan os.Signal, 1)

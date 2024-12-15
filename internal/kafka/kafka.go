@@ -11,8 +11,8 @@ import (
 	"go.uber.org/zap"
 )
 
-func (s *OrderService) CreateTopic(kafkaBrokers []string) {
-	conn, err := kafka.Dial("tcp", kafkaBrokers[0])
+func (s *ConsumerWrapper) CreateTopic() {
+	conn, err := kafka.Dial("tcp", s.KafkaBrokers[0])
 	if err != nil {
 		Logger.Fatal("kafka connection error", zap.Error(err))
 	}
@@ -44,9 +44,9 @@ func (s *OrderService) CreateTopic(kafkaBrokers []string) {
 	Logger.Info("topic successfully created", zap.String("topic", topic))
 }
 
-func (s *OrderService) ConsumeMessages(kafkaBrokers []string) {
+func (s *ConsumerWrapper) ConsumeMessages() {
 	r := kafka.NewReader(kafka.ReaderConfig{
-		Brokers:  kafkaBrokers,
+		Brokers:  s.KafkaBrokers,
 		GroupID:  "order_service",
 		Topic:    "orders",
 		MinBytes: 10e3,
@@ -67,7 +67,7 @@ func (s *OrderService) ConsumeMessages(kafkaBrokers []string) {
 		}
 
 		s.Queries.CreateOrder(s.Ctx, order)
-		//cache.OrderCache.Store(order.OrderUID, order)
+		s.Cache.AddOrder(&order)
 		Logger.Info("message successfully processed", zap.String("orderUID", order.OrderUID))
 	}
 }
