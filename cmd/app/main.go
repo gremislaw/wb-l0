@@ -34,7 +34,7 @@ func main() {
 	cache := cache.CreateCache(db)
 
 	// Создание REST сервиса
-	rest.CreateRestService(db)
+	rest.CreateRestService(db, cache)
 
 	// Загрузка конфига
 	cfg, err := config.Load()
