@@ -1,5 +1,10 @@
 # wb-l0
 
+## Туториал по сервису
+
+<img width="800" src="tutorial/tutorial.gif" />
+
+
 ## Endpoint'ы
 
 - `/order/id` - получить order по id из кеша
