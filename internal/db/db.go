@@ -15,14 +15,7 @@ import (
 )
 
 // Загрузка БД
-func Load(retries int) (*sql.DB, error) {
-	// Загрузка конфигурации
-	cfg, err := config.Load()
-	if err != nil {
-		Logger.Warn(err.Error())
-		return nil, err
-	}
-
+func Load(retries int, cfg *config.Config) (*sql.DB, error) {
 	// Преобразование конфигурационных данных в DSN
 	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", cfg.POSTGRES_HOST,
 		cfg.POSTGRES_PORT, cfg.POSTGRES_USER, cfg.POSTGRES_PASSWORD, cfg.POSTGRES_DB)
@@ -59,8 +52,7 @@ func Connect(dsn string, retries int) (*sql.DB, error) {
 	}
 	if err != nil {
 		errMsg := "DB connection error"
-		Logger.Warn(errMsg, zap.String("DSN", dsn))
-		return nil, errors.New(errMsg)
+		Logger.Fatal(errMsg, zap.String("DSN", dsn))
 	}
 	return db, nil
 }

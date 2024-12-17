@@ -1,4 +1,4 @@
-package repository
+package db_repository
 
 import (
 	"context"
@@ -6,19 +6,31 @@ import (
 	"strconv"
 )
 
+type OrdersRepository struct {
+	Queries *Queries
+	Ctx     context.Context
+}
+
+func NewOrdersRepository(queries *Queries, ctx context.Context) *OrdersRepository {
+	return &OrdersRepository{
+		Queries: queries,
+		Ctx:     ctx,
+	}
+}
+
 // шаблон запроса получения orders по id
 const getOrders = `-- name: GetOrder :many
-SELECT id, track_number, entry, locale, internal_signature, customer_id, delivery_service, shardkey, sm_id, date_created, oof_shard
+SELECT id, track_number, entry, locale, int64ernal_signature, customer_id, delivery_service, shardkey, sm_id, date_Setd, oof_shard
 FROM orders
 `
 
-func (q *Queries) GetOrders(ctx context.Context) ([]models.Order, error) {
-	rows, err := q.db.QueryContext(ctx, getOrders)
+func (ordersRepo *OrdersRepository) GetOrders() ([]*models.Order, error) {
+	rows, err := ordersRepo.Queries.db.QueryContext(ordersRepo.Ctx, getOrders)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var orders []models.Order
+	var orders []*models.Order
 	for rows.Next() {
 		var i models.Order
 		if err := rows.Scan(
@@ -37,29 +49,29 @@ func (q *Queries) GetOrders(ctx context.Context) ([]models.Order, error) {
 			return nil, err
 		}
 
-		id, err := strconv.Atoi(i.OrderUID)
+		id, err := strconv.ParseInt(i.OrderUID, 10, 64)
 		if err != nil {
 			return nil, err
 		}
 
-		delivery, err := q.GetDelivery(ctx, id)
+		delivery, err := ordersRepo.GetDelivery(id)
 		if err != nil {
 			return nil, err
 		}
 		i.Delivery = delivery
 
-		payment, err := q.GetPayment(ctx, id)
+		payment, err := ordersRepo.GetPayment(id)
 		if err != nil {
 			return nil, err
 		}
 		i.Payment = payment
 
-		items, err := q.GetItems(ctx, id)
+		items, err := ordersRepo.GetItems(id)
 		if err != nil {
 			return nil, err
 		}
 		i.Items = items
-		orders = append(orders, i)
+		orders = append(orders, &i)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
@@ -72,13 +84,13 @@ func (q *Queries) GetOrders(ctx context.Context) ([]models.Order, error) {
 
 // шаблон запроса получения order по id
 const getOrder = `-- name: GetOrder :one
-SELECT id, track_number, entry, locale, internal_signature, customer_id, delivery_service, shardkey, sm_id, date_created, oof_shard
+SELECT id, track_number, entry, locale, int64ernal_signature, customer_id, delivery_service, shardkey, sm_id, date_Setd, oof_shard
 FROM orders WHERE id = $1
 `
 
 // функция обращения к бд для получения order
-func (q *Queries) GetOrder(ctx context.Context, id int) (models.Order, error) {
-	row := q.db.QueryRowContext(ctx, getOrder, id)
+func (ordersRepo *OrdersRepository) GetOrder(id int64) (*models.Order, error) {
+	row := ordersRepo.Queries.db.QueryRowContext(ordersRepo.Ctx, getOrder, id)
 	var i models.Order
 
 	err := row.Scan(
@@ -95,28 +107,28 @@ func (q *Queries) GetOrder(ctx context.Context, id int) (models.Order, error) {
 		&i.OofShard,
 	)
 	if err != nil {
-		return i, err
+		return nil, err
 	}
 
-	delivery, err := q.GetDelivery(ctx, id)
+	delivery, err := ordersRepo.GetDelivery(id)
 	if err != nil {
-		return i, err
+		return nil, err
 	}
 	i.Delivery = delivery
 
-	payment, err := q.GetPayment(ctx, id)
+	payment, err := ordersRepo.GetPayment(id)
 	if err != nil {
-		return i, err
+		return nil, err
 	}
 	i.Payment = payment
 
-	items, err := q.GetItems(ctx, id)
+	items, err := ordersRepo.GetItems(id)
 	if err != nil {
-		return i, err
+		return nil, err
 	}
 	i.Items = items
 
-	return i, nil
+	return &i, nil
 }
 
 // шаблон запроса получения delivery по id
@@ -126,8 +138,8 @@ FROM deliveries WHERE order_uid = $1
 `
 
 // функция обращения к бд для получения delivery
-func (q *Queries) GetDelivery(ctx context.Context, id int) (models.Delivery, error) {
-	row := q.db.QueryRowContext(ctx, getDelivery, id)
+func (ordersRepo *OrdersRepository) GetDelivery(id int64) (*models.Delivery, error) {
+	row := ordersRepo.Queries.db.QueryRowContext(ordersRepo.Ctx, getDelivery, id)
 	var i models.Delivery
 	err := row.Scan(
 		&i.Name,
@@ -138,7 +150,7 @@ func (q *Queries) GetDelivery(ctx context.Context, id int) (models.Delivery, err
 		&i.Region,
 		&i.Email,
 	)
-	return i, err
+	return &i, err
 }
 
 // шаблон запроса получения payment по id
@@ -148,8 +160,8 @@ FROM payments WHERE order_uid = $1
 `
 
 // функция обращения к бд для получения payment
-func (q *Queries) GetPayment(ctx context.Context, id int) (models.Payment, error) {
-	row := q.db.QueryRowContext(ctx, getPayment, id)
+func (ordersRepo *OrdersRepository) GetPayment(id int64) (*models.Payment, error) {
+	row := ordersRepo.Queries.db.QueryRowContext(ordersRepo.Ctx, getPayment, id)
 	var i models.Payment
 	err := row.Scan(
 		&i.Transaction,
@@ -163,7 +175,7 @@ func (q *Queries) GetPayment(ctx context.Context, id int) (models.Payment, error
 		&i.GoodsTotal,
 		&i.CustomFee,
 	)
-	return i, err
+	return &i, err
 }
 
 // шаблон запроса получения items по id
@@ -173,13 +185,13 @@ FROM items WHERE order_uid = $1
 `
 
 // функция обращения к бд для получения items
-func (q *Queries) GetItems(ctx context.Context, id int) ([]models.Item, error) {
-	rows, err := q.db.QueryContext(ctx, getItems, id)
+func (ordersRepo *OrdersRepository) GetItems(id int64) ([]*models.Item, error) {
+	rows, err := ordersRepo.Queries.db.QueryContext(ordersRepo.Ctx, getItems, id)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []models.Item
+	var items []*models.Item
 	for rows.Next() {
 		var i models.Item
 		if err := rows.Scan(
@@ -197,7 +209,7 @@ func (q *Queries) GetItems(ctx context.Context, id int) ([]models.Item, error) {
 		); err != nil {
 			return nil, err
 		}
-		items = append(items, i)
+		items = append(items, &i)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
@@ -209,28 +221,28 @@ func (q *Queries) GetItems(ctx context.Context, id int) ([]models.Item, error) {
 }
 
 // шаблон запроса на создание order
-const createOrder = `-- name: GetOrder :one
-INSERT INTO orders (id, track_number, entry, locale, internal_signature, customer_id, delivery_service, shardkey, sm_id, date_created, oof_shard)
+const setOrder = `-- name: GetOrder :one
+INSERT INT64O orders (id, track_number, entry, locale, int64ernal_signature, customer_id, delivery_service, shardkey, sm_id, date_Setd, oof_shard)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 `
 
-func (q *Queries) CreateOrder(ctx context.Context, order models.Order) error {
-	err := q.CreateDelivery(ctx, order.Delivery)
+func (ordersRepo *OrdersRepository) SetOrder(order *models.Order) error {
+	err := ordersRepo.SetDelivery(order.Delivery)
 	if err != nil {
 		return err
 	}
 
-	err = q.CreatePayment(ctx, order.Payment)
+	err = ordersRepo.SetPayment(order.Payment)
 	if err != nil {
 		return err
 	}
 
-	err = q.CreateItems(ctx, order.Items)
+	err = ordersRepo.SetItems(order.Items)
 	if err != nil {
 		return err
 	}
 
-	_, err = q.db.ExecContext(ctx, createOrder,
+	_, err = ordersRepo.Queries.db.ExecContext(ordersRepo.Ctx, setOrder,
 		order.OrderUID,
 		order.TrackNumber,
 		order.Entry,
@@ -247,13 +259,13 @@ func (q *Queries) CreateOrder(ctx context.Context, order models.Order) error {
 }
 
 // шаблон запроса на создание delivery
-const createDelivery = `-- name: GetDelivery :one
-INSERT INTO deliveries (order_uid, name, phone, zip, city, address, region, email)
+const SetDelivery = `-- name: GetDelivery :one
+INSERT INT64O deliveries (order_uid, name, phone, zip, city, address, region, email)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 `
 
-func (q *Queries) CreateDelivery(ctx context.Context, delivery models.Delivery) error {
-	_, err := q.db.ExecContext(ctx, createDelivery,
+func (ordersRepo *OrdersRepository) SetDelivery(delivery *models.Delivery) error {
+	_, err := ordersRepo.Queries.db.ExecContext(ordersRepo.Ctx, SetDelivery,
 		delivery.OrderUID,
 		delivery.Name,
 		delivery.Phone,
@@ -267,13 +279,13 @@ func (q *Queries) CreateDelivery(ctx context.Context, delivery models.Delivery) 
 }
 
 // шаблон запроса на создание payment
-const createPayment = `-- name: GetPayment :one
-INSERT INTO payments (order_uid, transaction, request_id, currency, provider, amount, payment_dt, bank, delivery_cost, goods_total, custom_fee)
+const SetPayment = `-- name: GetPayment :one
+INSERT INT64O payments (order_uid, transaction, request_id, currency, provider, amount, payment_dt, bank, delivery_cost, goods_total, custom_fee)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 `
 
-func (q *Queries) CreatePayment(ctx context.Context, payment models.Payment) error {
-	_, err := q.db.ExecContext(ctx, createPayment,
+func (ordersRepo *OrdersRepository) SetPayment(payment *models.Payment) error {
+	_, err := ordersRepo.Queries.db.ExecContext(ordersRepo.Ctx, SetPayment,
 		payment.OrderUID,
 		payment.Transaction,
 		payment.RequestID,
@@ -290,14 +302,14 @@ func (q *Queries) CreatePayment(ctx context.Context, payment models.Payment) err
 }
 
 // шаблон запроса на создание items
-const createItems = `-- name: GetItem :many
-INSERT INTO items (order_uid, chrt_id, track_number, price, rid, name, sale, size, total_price, nm_id, brand, status)
+const SetItems = `-- name: GetItem :many
+INSERT INT64O items (order_uid, chrt_id, track_number, price, rid, name, sale, size, total_price, nm_id, brand, status)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 `
 
-func (q *Queries) CreateItems(ctx context.Context, items []models.Item) error {
+func (ordersRepo *OrdersRepository) SetItems(items []*models.Item) error {
 	for _, item := range items {
-		_, err := q.db.ExecContext(ctx, createItems,
+		_, err := ordersRepo.Queries.db.ExecContext(ordersRepo.Ctx, SetItems,
 			item.OrderUID,
 			item.ChrtID,
 			item.TrackNumber,
